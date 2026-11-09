@@ -1,0 +1,527 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Ghost Custom Password Phrase Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;500;600;700&family=Martian+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one column tool. Result tiles and stats on top, options below, rules at the foot. */
+:root {
+  --bg: #EDF0F3;
+  --surface: #FFFFFF;
+  --ink: #13202B;
+  --muted: #586878;
+  --line: #D2D9E0;
+  --accent: #0B6B5D;
+  --accent-ink: #FFFFFF;
+  --mark: #B53A0C;
+  --mark-bg: #FCE8DF;
+  --font-ui: "Familjen Grotesk", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "Martian Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0D151C;
+    --surface: #15202A;
+    --ink: #E7EEF4;
+    --muted: #92A3B2;
+    --line: #27384A;
+    --accent: #4CD0B2;
+    --accent-ink: #06231D;
+    --mark: #FF9B70;
+    --mark-bg: #3A2218;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0D151C;
+  --surface: #15202A;
+  --ink: #E7EEF4;
+  --muted: #92A3B2;
+  --line: #27384A;
+  --accent: #4CD0B2;
+  --accent-ink: #06231D;
+  --mark: #FF9B70;
+  --mark-bg: #3A2218;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  line-height: 1.5;
+  padding-inline: 16px;
+  padding-block: 32px 56px;
+}
+.wrap { max-width: 44rem; margin-inline: auto; display: grid; gap: 24px; }
+h1 {
+  margin: 0;
+  font-size: clamp(1.8rem, 5.5vw, 2.6rem);
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+.top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.top .btn { flex: none; padding: 8px 14px; font-size: 0.9rem; }
+.lead { margin: 8px 0 0; color: var(--muted); max-width: 52ch; }
+h2 { margin: 0; font-size: 1rem; font-weight: 600; }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+.result { padding: 20px; display: grid; gap: 18px; }
+.label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.tiles { display: flex; flex-wrap: wrap; gap: 10px; }
+.tile {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+}
+.word {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: clamp(1.05rem, 4.6vw, 1.6rem);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+.hy { color: var(--muted); font-weight: 400; }
+.mark { color: var(--mark); background: var(--mark-bg); border-radius: 3px; padding-inline: 1px; }
+.cat {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.plain { display: grid; gap: 6px; }
+.plain input {
+  width: 100%;
+  font: 600 0.95rem var(--font-mono);
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.btn {
+  font: 600 1rem var(--font-ui);
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn:focus-visible, .sw:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.status { margin: 0; min-height: 1.5em; font-size: 0.9rem; color: var(--muted); }
+
+.stats {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 16px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+.stats div { min-width: 0; }
+.stats dt { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.stats dd { margin: 4px 0 0; font-family: var(--font-mono); font-size: 1.1rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.meter { display: block; height: 6px; margin-top: 8px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.meter i { display: block; height: 100%; background: var(--accent); }
+
+.options { padding: 4px 20px; margin: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); min-width: 0; }
+.options legend { padding: 0; }
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-block: 16px;
+  border-top: 1px solid var(--line);
+}
+.row:first-of-type { border-top: 0; }
+.row > div { min-width: 0; }
+.row-title { font-weight: 600; }
+.row-help { margin: 2px 0 0; font-size: 0.9rem; color: var(--muted); max-width: 46ch; }
+
+.wordbtns { display: flex; gap: 10px; flex: none; }
+.wordbtns .btn { min-width: 48px; padding-inline: 16px; }
+.wordbtns .btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+
+.sw {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  width: 44px;
+  height: 26px;
+  margin: 0;
+  border-radius: 13px;
+  background: var(--line);
+  position: relative;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.sw::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--muted);
+  transition: transform 0.15s;
+}
+.sw:checked { background: var(--accent); }
+.sw:checked::before { transform: translateX(18px); background: var(--accent-ink); box-shadow: none; }
+
+.rules { padding: 20px; display: grid; gap: 12px; }
+.rules ul { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; color: var(--muted); font-size: 0.95rem; }
+.rules p { margin: 0; color: var(--muted); font-size: 0.95rem; max-width: 62ch; }
+
+@media (max-width: 480px) {
+  .row { align-items: flex-start; }
+  .result, .rules { padding: 16px; }
+  .options { padding-inline: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sw, .sw::before { transition: none; }
+}
+</style>
+
+<script>
+try {
+  var t = localStorage.getItem("ghost-custom-password-phrase-builder-theme");
+  document.documentElement.setAttribute("data-theme", t === "light" ? "light" : "dark");
+} catch (e) { document.documentElement.setAttribute("data-theme", "dark"); }
+</script>
+
+<main class="wrap">
+  <header>
+    <div class="top">
+      <h1>Ghost Custom Password Phrase Builder</h1>
+      <button class="btn" id="theme" type="button" aria-label="Switch color theme">Light mode</button>
+    </div>
+    <p class="lead">Two, three or four short words, picked at random in your browser. Add one number and one special character if you want them. The passphrase is never sent anywhere or saved.</p>
+  </header>
+
+  <section class="panel result" aria-labelledby="result-label">
+    <div class="label" id="result-label">Your passphrase</div>
+    <div class="tiles" id="tiles"></div>
+
+    <div class="plain">
+      <label class="label" for="out">Plain text</label>
+      <input id="out" type="text" readonly spellcheck="false" autocomplete="off" value="">
+    </div>
+
+    <div class="actions">
+      <button class="btn primary" id="gen" type="button">Generate new</button>
+      <button class="btn" id="copy" type="button">Copy passphrase</button>
+    </div>
+    <p class="status" id="status" role="status" aria-live="polite"></p>
+
+    <dl class="stats">
+      <div><dt>Characters</dt><dd id="len">0</dd></div>
+      <div><dt>Entropy (est.)</dt><dd id="bits">0 bits</dd></div>
+      <div><dt>Rating</dt><dd id="rating">-</dd><span class="meter" aria-hidden="true"><i id="meter" style="width:0"></i></span></div>
+    </dl>
+  </section>
+
+  <fieldset class="options">
+    <legend class="label" style="padding-block:16px 0">Options</legend>
+
+    <div class="row">
+      <div>
+        <div class="row-title" id="words-title">Number of words</div>
+      </div>
+      <div class="wordbtns" role="group" aria-labelledby="words-title">
+        <button class="btn" type="button" data-words="2" aria-pressed="false">2</button>
+        <button class="btn" type="button" data-words="3" aria-pressed="false">3</button>
+        <button class="btn" type="button" data-words="4" aria-pressed="false">4</button>
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label class="row-title" for="number">Add a number</label>
+        <p class="row-help">One digit, placed in the middle of a word or as its last character.</p>
+      </div>
+      <input class="sw" type="checkbox" role="switch" id="number">
+    </div>
+
+    <div class="row">
+      <div>
+        <label class="row-title" for="special">Add a special character</label>
+        <p class="row-help">One of ! @ # $ % &amp; * ? + =, placed the same way. It never lands in the same word as the number.</p>
+      </div>
+      <input class="sw" type="checkbox" role="switch" id="special">
+    </div>
+
+    <div class="row">
+      <div>
+        <label class="row-title" for="hyphen">Hyphens between words</label>
+        <p class="row-help">Separators only. They are not counted as special characters.</p>
+      </div>
+      <input class="sw" type="checkbox" role="switch" id="hyphen">
+    </div>
+
+    <div class="row">
+      <div>
+        <label class="row-title" for="caps">Capitalize a random letter in each word</label>
+        <p class="row-help">One letter per word, chosen at random, becomes upper case. It can be any letter, not just the first.</p>
+      </div>
+      <input class="sw" type="checkbox" role="switch" id="caps">
+    </div>
+  </fieldset>
+
+  <section class="panel rules" aria-labelledby="rules-title">
+    <h2 id="rules-title">How the rules work</h2>
+    <ul>
+      <li>Every word is 6 characters or fewer, including a number or special character added to it. Words that receive one are drawn from words of 5 letters or fewer.</li>
+      <li>The number and the special character always go in different words, either in the middle of the word or as its last character.</li>
+      <li>Words follow a pattern. Two words are an adjective and an animal. Three add a color in the middle. Four add a food at the end.</li>
+      <li id="pools"></li>
+      <li>Choices use your browser's secure random number generator.</li>
+    </ul>
+    <p>Entropy is estimated from every random choice: which word, and where the number and special character go. Short word lists keep a phrase easy to remember and type, so the totals stay modest, and two words are the weakest choice. For accounts that matter most, use your password manager's generator as well.</p>
+  </section>
+</main>
+
+<script>
+/* CORE START */
+const RAW = {
+  adjective: "able agile ample ardent balmy bold brave breezy bright brisk burly calm candid chilly clever cosmic cozy crisp curly dainty daring dapper dizzy dusty eager early fancy feisty fierce fluffy frosty fuzzy gentle giant glossy grand gritty happy hardy hasty humble jazzy jaunty jolly jumpy keen kind lanky lithe lively lofty loyal lucid lucky mellow merry mighty misty modest moody mossy neat nifty nimble noble noisy nutty peppy perky plucky plush polite prime proud pure quick quiet rapid ready regal robust rowdy round royal rusty salty sandy savvy shady shaggy sharp shiny silent silky sleek slick smart snappy snowy solid sonic spicy spiffy spry steady stormy stout sturdy sunlit sunny super sweet swift tame tangy tidy tiny tough tricky true urban vast vivid vocal warm wavy wild windy wise witty zany zesty zingy zippy",
+  color: "amber aqua auburn azure beige black blue bronze brown cerise chalk coal cobalt copper coral cream cyan denim ebony ember fawn fern flax forest gold gray green hazel henna indigo iris ivory jade khaki lava lilac maroon mauve moss navy ochre olive onyx opal orange peach pearl pewter pink plum purple red rose ruby rust sage salmon sand sepia sienna silver sky slate smoke steel tan taupe tawny teal topaz umber violet white wine yellow lemon lime mint mocha",
+  animal: "ant badger bass bat bear beaver bee bison boar camel carp civet coati cobra cod condor crab crane crow deer dingo dove duck eagle eel eland elk emu falcon ferret finch fox gecko genet gibbon goat goose gopher gull hare hawk heron horse hyena ibis impala jaguar kiwi koala lark lemur lion lizard llama lynx macaw manta marmot mink mole monkey moose moth mouse newt okapi orca oryx osprey otter owl panda parrot perch pigeon pony puma python quail rabbit raven rhea robin seal shark skunk sloth snail squid stag stork swan tapir tern tiger toad toucan trout turtle viper vole walrus wasp weasel whale wolf wombat wren yak zebra",
+  food: "almond apple bacon bagel banana basil bean beet berry bread brie bun cake candy carrot cashew celery cherry chili chive cider clove cocoa cookie corn crepe cumin curd curry dates dough donut fennel fig fudge garlic ginger grape gravy gumbo hash honey jam jelly kale kebab latte leek mango maple melon mochi nacho noodle oat onion pasta pear pecan pepper pesto pickle pie pizza radish ramen rice salad salsa scone sesame sorbet soup stew sushi taco tea thyme toast tofu turnip waffle walnut wheat yam yogurt"
+};
+const CATS = ["adjective", "color", "animal", "food"].map(function (key) {
+  var all = Array.from(new Set(RAW[key].split(/\s+/).filter(Boolean)));
+  return { key: key, all: all, short: all.filter(function (w) { return w.length <= 5; }) };
+});
+const SPECIALS = "!@#$%&*?+=".split("");
+
+function randInt(n) {
+  var max = Math.floor(0x100000000 / n) * n;
+  var a = new Uint32Array(1);
+  do { crypto.getRandomValues(a); } while (a[0] >= max);
+  return a[0] % n;
+}
+function shuffle(arr) {
+  for (var i = arr.length - 1; i > 0; i--) {
+    var j = randInt(i + 1);
+    var t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+  }
+  return arr;
+}
+
+function generate(opts) {
+  var n = opts.words;
+  var layout = { 2: [0, 2], 3: [0, 1, 2], 4: [0, 1, 2, 3] }[n];
+  var cats = layout.map(function (i) { return CATS[i]; });
+  var order = shuffle(cats.map(function (_, i) { return i; }));
+  var numSlot = opts.number ? order.pop() : -1;
+  var spSlot = opts.special ? order.pop() : -1;
+  var bits = 0;
+  if (opts.number) bits += Math.log2(n) + Math.log2(10) + 1;
+  if (opts.special) bits += Math.log2(n - (opts.number ? 1 : 0)) + Math.log2(SPECIALS.length) + 1;
+
+  var parts = cats.map(function (cat, i) {
+    var carries = i === numSlot || i === spSlot;
+    var pool = carries ? cat.short : cat.all;
+    bits += Math.log2(pool.length);
+    var w = pool[randInt(pool.length)];
+    if (opts.caps) {
+      var ci = randInt(w.length);
+      bits += Math.log2(w.length);
+      w = w.slice(0, ci) + w.charAt(ci).toUpperCase() + w.slice(ci + 1);
+    }
+    var segs;
+    if (carries) {
+      var isNum = i === numSlot;
+      var ch = isNum ? String(randInt(10)) : SPECIALS[randInt(SPECIALS.length)];
+      var p = randInt(2) === 0 ? Math.floor(w.length / 2) : w.length;
+      segs = [
+        { t: w.slice(0, p), k: "w" },
+        { t: ch, k: isNum ? "number" : "special" },
+        { t: w.slice(p), k: "w" }
+      ].filter(function (s) { return s.t.length > 0; });
+    } else {
+      segs = [{ t: w, k: "w" }];
+    }
+    return { cat: cat.key, segs: segs, text: segs.map(function (s) { return s.t; }).join("") };
+  });
+
+  var text = parts.map(function (p) { return p.text; }).join(opts.hyphen ? "-" : "");
+  return { parts: parts, text: text, bits: bits };
+}
+/* CORE END */
+
+/* UI */
+var $ = function (id) { return document.getElementById(id); };
+var DEFAULTS = { words: 3, number: true, special: true, hyphen: true, caps: true };
+var KEY = "ghost-custom-password-phrase-builder-options";
+var state = loadState();
+var current = null;
+var statusTimer = null;
+
+function loadState() {
+  var s = Object.assign({}, DEFAULTS);
+  try {
+    var saved = JSON.parse(localStorage.getItem(KEY) || "null");
+    if (saved && typeof saved === "object") {
+      if (saved.words === 2 || saved.words === 3 || saved.words === 4) s.words = saved.words;
+      ["number", "special", "hyphen", "caps"].forEach(function (k) {
+        if (typeof saved[k] === "boolean") s[k] = saved[k];
+      });
+    }
+  } catch (e) {}
+  return s;
+}
+function saveState() {
+  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+}
+function syncControls() {
+  document.querySelectorAll(".wordbtns .btn").forEach(function (b) {
+    b.setAttribute("aria-pressed", String(Number(b.dataset.words) === state.words));
+  });
+  ["number", "special", "hyphen", "caps"].forEach(function (k) { $(k).checked = state[k]; });
+}
+function readControls() {
+  ["number", "special", "hyphen", "caps"].forEach(function (k) { state[k] = $(k).checked; });
+}
+
+function rate(bits) {
+  if (bits < 25) return "Basic";
+  if (bits < 35) return "Moderate";
+  if (bits < 50) return "Good";
+  return "Strong";
+}
+
+function setStatus(msg) {
+  $("status").textContent = msg;
+  clearTimeout(statusTimer);
+  if (msg) statusTimer = setTimeout(function () { $("status").textContent = ""; }, 3000);
+}
+
+function render() {
+  var tiles = $("tiles");
+  tiles.textContent = "";
+  current.parts.forEach(function (part, idx) {
+    var tile = document.createElement("div");
+    tile.className = "tile";
+    var word = document.createElement("span");
+    word.className = "word";
+    part.segs.forEach(function (s) {
+      var el = document.createElement("span");
+      el.textContent = s.t;
+      if (s.k !== "w") el.className = "mark";
+      word.appendChild(el);
+    });
+    if (state.hyphen && idx < current.parts.length - 1) {
+      var hy = document.createElement("span");
+      hy.className = "hy";
+      hy.textContent = "-";
+      word.appendChild(hy);
+    }
+    var cat = document.createElement("span");
+    cat.className = "cat";
+    cat.textContent = part.cat;
+    tile.appendChild(word);
+    tile.appendChild(cat);
+    tiles.appendChild(tile);
+  });
+  $("out").value = current.text;
+  $("len").textContent = String(current.text.length);
+  var b = Math.round(current.bits);
+  $("bits").textContent = "~" + b + " bits";
+  $("rating").textContent = rate(current.bits);
+  $("meter").style.width = Math.min(current.bits / 60, 1) * 100 + "%";
+}
+
+function regenerate() {
+  current = generate(state);
+  render();
+}
+
+function fallbackCopy() {
+  var out = $("out");
+  out.focus();
+  out.select();
+  var ok = false;
+  try { ok = document.execCommand("copy"); } catch (e) {}
+  setStatus(ok ? "Copied to clipboard." : "Text is selected. Press Ctrl+C (Cmd+C on Mac) to copy it.");
+}
+function copyText() {
+  var text = current.text;
+  var done = function () {
+    setStatus("Copied to clipboard.");
+    var btn = $("copy");
+    btn.textContent = "Copied";
+    setTimeout(function () { btn.textContent = "Copy passphrase"; }, 1600);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done, fallbackCopy);
+  } else {
+    fallbackCopy();
+  }
+}
+
+function describePools() {
+  var names = { adjective: "adjectives", color: "colors", animal: "animals", food: "foods" };
+  $("pools").textContent = "Word lists: " + CATS.map(function (c) {
+    return c.all.length + " " + names[c.key];
+  }).join(", ") + ".";
+}
+
+var THEME_KEY = "ghost-custom-password-phrase-builder-theme";
+function applyTheme(t) {
+  document.documentElement.setAttribute("data-theme", t);
+  $("theme").textContent = t === "dark" ? "Light mode" : "Dark mode";
+}
+applyTheme(document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark");
+$("theme").addEventListener("click", function () {
+  var next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+  applyTheme(next);
+  try { localStorage.setItem(THEME_KEY, next); } catch (e) {}
+});
+
+syncControls();
+describePools();
+regenerate();
+
+$("gen").addEventListener("click", function () { regenerate(); setStatus(""); });
+$("copy").addEventListener("click", copyText);
+document.querySelectorAll(".wordbtns .btn").forEach(function (b) {
+  b.addEventListener("click", function () {
+    state.words = Number(b.dataset.words);
+    syncControls(); saveState(); regenerate();
+  });
+});
+document.querySelectorAll(".options input").forEach(function (el) {
+  el.addEventListener("change", function () { readControls(); saveState(); regenerate(); });
+});
+</script>
+
+</body></html>
